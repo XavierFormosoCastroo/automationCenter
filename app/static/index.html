@@ -8,94 +8,83 @@
   </head>
   <body>
     <main class="shell">
-      <aside class="project-menu" aria-label="Projects">
-        <div class="brand">
-          <div class="brand-mark">AC</div>
+      <section class="projects-board" aria-label="Projects">
+        <header class="section-head">
           <div>
-            <strong>automationCenter</strong>
-            <span>Local project control</span>
+            <h1>Projects</h1>
+            <p>Select your project</p>
           </div>
-        </div>
-        <div class="menu-label">Projects</div>
-        <nav id="projectMenu" class="project-menu-list"></nav>
-      </aside>
-
-      <section class="workspace">
-        <header class="hero">
-          <div>
-            <p class="eyebrow">Dashboard</p>
-            <h1>Local automation command center</h1>
+          <div class="brand">
+            <span class="brand-mark">AC</span>
+            <span>automationCenter</span>
           </div>
-          <div class="live-pill" id="globalStatus">Loading</div>
         </header>
+        <nav id="projectMenu" class="project-menu-list"></nav>
+      </section>
 
-        <section class="summary-grid" aria-label="Execution summary">
-          <article class="summary-card">
-            <span>Projects</span>
-            <strong id="projectCount">0</strong>
-          </article>
-          <article class="summary-card">
-            <span>Last execution</span>
-            <strong id="lastRun">None</strong>
-          </article>
-          <article class="summary-card">
-            <span>Failure rate 24h</span>
-            <strong id="failureRate">0%</strong>
-          </article>
-          <article class="summary-card">
-            <span>Risk threshold</span>
-            <strong id="riskBand">Green</strong>
-          </article>
-        </section>
+      <section class="summary-grid" aria-label="Execution summary">
+        <article class="summary-card">
+          <span>Projects</span>
+          <strong id="projectCount">0</strong>
+        </article>
+        <article class="summary-card">
+          <span>Last execution</span>
+          <strong id="lastRun">None</strong>
+        </article>
+        <article class="summary-card">
+          <span>Failure rate 24h</span>
+          <strong id="failureRate">0%</strong>
+        </article>
+        <article class="summary-card">
+          <span>Risk threshold</span>
+          <strong id="riskBand">Green</strong>
+        </article>
+      </section>
 
-        <section class="dashboard-grid">
-          <section class="panel project-panel" aria-label="Selected project">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Selected project</p>
-                <h2 id="selectedTitle">Project</h2>
-              </div>
-              <span class="risk-badge" id="selectedRisk">Ready</span>
-            </div>
-            <p id="selectedPath" class="path-text"></p>
-            <div class="project-facts">
-              <div>
-                <span>Last run</span>
-                <strong id="selectedLastRun">None</strong>
-              </div>
-              <div>
-                <span>24h failures</span>
-                <strong id="selectedFailures">0</strong>
-              </div>
-              <div>
-                <span>24h failure rate</span>
-                <strong id="selectedFailureRate">0%</strong>
-              </div>
-            </div>
-          </section>
-
-          <section class="panel" aria-label="Projects with most failures">
-            <div class="panel-head compact">
-              <div>
-                <p class="eyebrow">Last 24 hours</p>
-                <h2>Most fragile projects</h2>
-              </div>
-            </div>
-            <div id="fragileList" class="fragile-list"></div>
-          </section>
-        </section>
-
-        <section class="flow-panel" aria-label="Automation flow">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Automation path</p>
-              <h2>Run operations visually</h2>
-            </div>
-            <button class="primary-action" id="runSequence" type="button">Run path</button>
+      <section class="project-context">
+        <article class="context-card selected-project">
+          <div>
+            <span>Selected project</span>
+            <strong id="selectedTitle">Project</strong>
+            <p id="selectedPath"></p>
           </div>
-          <div id="flowTrack" class="flow-track"></div>
-          <div id="runLog" class="run-log"></div>
-        </section>
+          <em id="selectedRisk" class="risk-badge">Ready</em>
+        </article>
+        <article class="context-card">
+          <span>Last run</span>
+          <strong id="selectedLastRun">None</strong>
+        </article>
+        <article class="context-card">
+          <span>24h failures</span>
+          <strong id="selectedFailures">0</strong>
+        </article>
+        <article class="context-card">
+          <span>24h failure rate</span>
+          <strong id="selectedFailureRate">0%</strong>
+        </article>
+      </section>
+
+      <section class="flow-panel" aria-label="Automation flow">
+        <header class="flow-head">
+          <div>
+            <h2>Automation path</h2>
+            <p>Run operations visually</p>
+          </div>
+          <button class="primary-action" id="runSequence" type="button">Run path</button>
+        </header>
+        <div id="flowTrack" class="flow-track"></div>
+        <div id="runLog" class="run-log"></div>
+      </section>
+
+      <section class="fragile-panel" aria-label="Projects with most failures">
+        <header class="section-head small">
+          <div>
+            <h2>Most fragile projects</h2>
+            <p>Last 24 hours</p>
+          </div>
+          <span id="globalStatus">Loading</span>
+        </header>
+        <div id="fragileList" class="fragile-list"></div>
       </section>
     </main>
 

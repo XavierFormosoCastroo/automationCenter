@@ -78,13 +78,15 @@ function renderProjectMenu() {
     const data = history(project);
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `project-tab ${state.selected?.name === project.name ? "active" : ""}`;
+    button.className = `project-card ${state.selected?.name === project.name ? "active" : ""}`;
     button.innerHTML = `
-      <span>
+      <span class="project-thumb" aria-hidden="true"></span>
+      <span class="project-copy">
         <strong>${project.name}</strong>
-        <small>${relativeTime(data.latest_run_at)}</small>
+        <small>${relativeTime(data.latest_run_at)} · ${data.failure_rate_24h}% failure rate</small>
+        <small>${project.path}</small>
       </span>
-      <em class="${data.failure_level}">${data.failure_rate_24h}%</em>
+      <em class="${data.failure_level}" title="${data.failure_level}"></em>
     `;
     button.addEventListener("click", () => {
       state.selected = project;
@@ -139,25 +141,55 @@ function renderFlow() {
     return;
   }
 
-  track.innerHTML = project.operations
+  const operations = project.operations.slice(0, 4);
+  const positions = [
+    { left: 18, top: 48 },
+    { left: 48, top: 30 },
+    { left: 80, top: 63 },
+    { left: 84, top: 46 },
+  ];
+  const routes = [
+    "M 23 53 H 35 V 35 H 43",
+    "M 53 35 H 64 V 68 H 75",
+    "M 85 68 H 88 V 51 H 84",
+  ];
+  const routeMarkup = routes
+    .map((path, index) => {
+      const previous = state.operationResults[operations[index]?.id];
+      return `<path class="flow-route ${statusForResult(previous)}" d="${path}" />`;
+    })
+    .join("");
+  const nodeMarkup = operations
     .map((operation, index) => {
       const result = state.operationResults[operation.id];
       const status = statusForResult(result);
       const isActive = state.activeOperation === operation.id;
-      const previous = index > 0 ? state.operationResults[project.operations[index - 1].id] : null;
-      const connectorStatus = index === 0 ? "" : statusForResult(previous);
+      const position = positions[index];
       return `
-        <div class="flow-step-wrap">
-          ${index === 0 ? "" : `<div class="flow-connector ${connectorStatus}"></div>`}
-          <button class="flow-step ${status} ${isActive ? "active" : ""}" type="button" data-operation="${operation.id}">
-            <span class="step-index">${index + 1}</span>
-            <strong>${operation.name}</strong>
-            <small>${operation.human_goal}</small>
-          </button>
-        </div>
+        <button
+          class="flow-node ${status} ${isActive ? "active" : ""}"
+          style="left:${position.left}%; top:${position.top}%"
+          type="button"
+          data-operation="${operation.id}"
+        >
+          <strong>${operation.name}</strong>
+        </button>
       `;
     })
     .join("");
+
+  track.innerHTML = `
+    <div class="flow-board">
+      <svg class="route-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        ${routeMarkup}
+      </svg>
+      ${nodeMarkup}
+      <button class="arrow-node" type="button" aria-label="Next automation page"></button>
+      <div class="flow-pager" aria-hidden="true">
+        <span>1</span><span>2</span><i></i><i></i><i></i>
+      </div>
+    </div>
+  `;
 
   track.querySelectorAll("[data-operation]").forEach((button) => {
     button.addEventListener("click", () => runOperation(project.name, button.dataset.operation));
