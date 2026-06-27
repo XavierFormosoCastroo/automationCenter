@@ -3,25 +3,30 @@
     {
       "name": "myGoogleDrive",
       "path": "../myGoogleDrive",
+      "container_path": "/projects/myGoogleDrive",
       "checks": [
         {
+          "id": "git-status",
           "name": "Git status",
           "command": ["git", "status", "--short", "--branch"],
           "human_goal": "Comprobar si hay cambios pendientes en el proyecto."
         },
         {
+          "id": "node-tests",
           "name": "Node tests",
           "command": ["npm", "test"],
           "only_if_exists": "package.json",
           "human_goal": "Ejecutar los tests automaticos del proyecto si existe configuracion Node."
         },
         {
+          "id": "node-lint",
           "name": "Node lint",
           "command": ["npm", "run", "lint"],
           "only_if_exists": "package.json",
           "human_goal": "Revisar estilo y errores comunes si existe configuracion Node."
         },
         {
+          "id": "python-tests",
           "name": "Python tests",
           "command": ["{python}", "-m", "pytest"],
           "only_if_exists_any": ["pyproject.toml", "pytest.ini", "setup.cfg"],

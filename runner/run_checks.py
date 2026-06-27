@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import time
@@ -14,6 +15,12 @@ REPORTS_DIR = ROOT / "reports"
 def load_config():
     with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
         return json.load(config_file)
+
+
+def resolve_project_path(project):
+    if os.environ.get("AUTOMATION_IN_DOCKER") == "1" and project.get("container_path"):
+        return Path(project["container_path"]).resolve()
+    return (ROOT / project["path"]).resolve()
 
 
 def should_run(check, project_path):
@@ -86,6 +93,26 @@ def run_check(check, project_path):
     return result
 
 
+def run_project(project, operation_id=None):
+    project_path = resolve_project_path(project)
+    checks = []
+
+    for check in project["checks"]:
+        if operation_id and check.get("id") != operation_id:
+            continue
+        checks.append(run_check(check, project_path))
+
+    if operation_id and not checks:
+        raise ValueError(f"No existe la operacion {operation_id} en {project['name']}.")
+
+    return {
+        "name": project["name"],
+        "path": str(project_path),
+        "summary": summarize_project(checks),
+        "checks": checks,
+    }
+
+
 def summarize_project(checks):
     failed = [check for check in checks if check["status"] == "failed"]
     passed = [check for check in checks if check["status"] == "passed"]
@@ -152,9 +179,8 @@ def build_markdown_report(report):
     return "\n".join(lines).strip() + "\n"
 
 
-def main():
+def write_report(projects):
     REPORTS_DIR.mkdir(exist_ok=True)
-    config = load_config()
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
@@ -163,21 +189,8 @@ def main():
         "projects": [],
     }
 
-    for project in config["projects"]:
-        project_path = (ROOT / project["path"]).resolve()
-        checks = []
-
-        for check in project["checks"]:
-            checks.append(run_check(check, project_path))
-
-        report["projects"].append(
-            {
-                "name": project["name"],
-                "path": str(project_path),
-                "summary": summarize_project(checks),
-                "checks": checks,
-            }
-        )
+    for project in projects:
+        report["projects"].append(project)
 
     json_path = REPORTS_DIR / f"daily-{stamp}.json"
     markdown_path = REPORTS_DIR / f"daily-{stamp}.md"
@@ -187,6 +200,16 @@ def main():
 
     print(f"JSON report: {json_path}")
     print(f"Markdown report: {markdown_path}")
+    return report
+
+
+def run_all():
+    config = load_config()
+    return write_report([run_project(project) for project in config["projects"]])
+
+
+def main():
+    report = run_all()
 
     has_failures = any(
         check["status"] == "failed"

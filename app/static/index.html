@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>automationCenter</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar" aria-label="Workspace">
+        <div class="brand">
+          <div class="brand-mark">AC</div>
+          <div>
+            <strong>automationCenter</strong>
+            <span>Local command dashboard</span>
+          </div>
+        </div>
+        <nav class="nav">
+          <button class="nav-item active" type="button">Dashboard</button>
+          <button class="nav-item" type="button">Schedules</button>
+          <button class="nav-item" type="button">Reports</button>
+          <button class="nav-item" type="button">Settings</button>
+        </nav>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Control panel</p>
+            <h1>Projects</h1>
+          </div>
+          <div class="status-pill" id="globalStatus">Loading</div>
+        </header>
+
+        <section class="metric-row" aria-label="Project metrics">
+          <div class="metric">
+            <span>Projects</span>
+            <strong id="projectCount">0</strong>
+          </div>
+          <div class="metric">
+            <span>Healthy</span>
+            <strong id="healthyCount">0</strong>
+          </div>
+          <div class="metric">
+            <span>Need attention</span>
+            <strong id="attentionCount">0</strong>
+          </div>
+          <div class="metric">
+            <span>Last run</span>
+            <strong id="lastRun">None</strong>
+          </div>
+        </section>
+
+        <section class="content-grid">
+          <div class="project-list" id="projectList" aria-label="Registered projects"></div>
+          <section class="detail-panel" id="detailPanel" aria-label="Project detail"></section>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

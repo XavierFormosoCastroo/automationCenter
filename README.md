@@ -31,6 +31,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_daily.ps1
 
 Los informes se generan en `reports/`.
 
+## Panel web local
+
+Arrancar sin Docker:
+
+```powershell
+python .\app\server.py
+```
+
+Arrancar con Docker:
+
+```powershell
+docker compose up --build
+```
+
+La interfaz queda disponible en `http://localhost:8000`.
+
 ## Primer proyecto monitorizado
 
 Ahora mismo esta configurado:
