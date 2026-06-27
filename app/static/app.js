@@ -5,6 +5,7 @@ let state = {
   view: "dashboard",
   activeOperation: null,
   operationResults: {},
+  flowPage: 0,
 };
 
 const riskLabels = {
@@ -53,6 +54,72 @@ function statusForResult(result) {
   return "idle";
 }
 
+function escapeHtml(value = "") {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function operationIcon(operation) {
+  const name = `${operation.id} ${operation.name}`.toLowerCase();
+  if (name.includes("test")) {
+    return `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 3h6" />
+        <path d="M10 3v5l-4.5 8A3.5 3.5 0 0 0 8.6 21h6.8a3.5 3.5 0 0 0 3.1-5L14 8V3" />
+        <path d="M8 16h8" />
+      </svg>
+    `;
+  }
+  if (name.includes("build")) {
+    return `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 15.5 12 20l8-4.5" />
+        <path d="M4 10.5 12 15l8-4.5" />
+        <path d="M4 6l8 4.5L20 6l-8-4.5L4 6Z" />
+      </svg>
+    `;
+  }
+  if (name.includes("start") || name.includes("run")) {
+    return `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m8 5 11 7-11 7V5Z" />
+      </svg>
+    `;
+  }
+  if (name.includes("lint") || name.includes("check")) {
+    return `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 6h16" />
+        <path d="M4 12h10" />
+        <path d="M4 18h8" />
+        <path d="m16 17 2 2 4-5" />
+      </svg>
+    `;
+  }
+  if (name.includes("git")) {
+    return `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7 7h.01" />
+        <path d="M17 17h.01" />
+        <path d="M7 7v6a4 4 0 0 0 4 4h6" />
+        <path d="M7 7h6a4 4 0 0 1 4 4v6" />
+      </svg>
+    `;
+  }
+  return `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3v18" />
+      <path d="M3 12h18" />
+      <path d="m7 7 10 10" />
+      <path d="m17 7-10 10" />
+    </svg>
+  `;
+}
+
 function updateSummary(payload) {
   const projects = payload.projects;
   const totalChecks = projects.reduce((sum, project) => sum + history(project).checks_24h, 0);
@@ -84,7 +151,7 @@ function renderProjectMenu() {
       <span class="project-thumb" aria-hidden="true"></span>
       <span class="project-copy">
         <strong>${project.name}</strong>
-        <small>${relativeTime(data.latest_run_at)} · ${data.failure_rate_24h}% failure rate</small>
+        <small>${relativeTime(data.latest_run_at)} - ${data.failure_rate_24h}% failure rate</small>
         <small>${project.path}</small>
       </span>
       <em class="${data.failure_level}" title="${data.failure_level}"></em>
@@ -94,6 +161,7 @@ function renderProjectMenu() {
       state.view = "project-detail";
       state.operationResults = {};
       state.activeOperation = null;
+      state.flowPage = 0;
       render();
     });
     menu.appendChild(button);
@@ -143,24 +211,35 @@ function renderFlow() {
     return;
   }
 
-  const operations = project.operations.slice(0, 4);
+  const pageSize = 3;
+  const allOperations = project.operations || [];
+  const totalPages = Math.max(1, Math.ceil(allOperations.length / pageSize));
+  state.flowPage = Math.min(state.flowPage, totalPages - 1);
+  const pageStart = state.flowPage * pageSize;
+  const operations = allOperations.slice(pageStart, pageStart + pageSize);
+  const hasNextPage = state.flowPage < totalPages - 1;
+  const hasPreviousPage = state.flowPage > 0;
   const positions = [
-    { left: 18, top: 48 },
-    { left: 48, top: 30 },
-    { left: 80, top: 63 },
-    { left: 84, top: 46 },
+    { left: 20, top: 54 },
+    { left: 50, top: 34 },
+    { left: 78, top: 62 },
   ];
   const routes = [
-    "M 23 53 H 35 V 35 H 43",
-    "M 53 35 H 64 V 68 H 75",
-    "M 85 68 H 88 V 51 H 84",
+    "M 25 54 H 35 V 34 H 43",
+    "M 57 34 H 66 V 62 H 71",
   ];
   const routeMarkup = routes
     .map((path, index) => {
+      if (!operations[index + 1]) return "";
       const previous = state.operationResults[operations[index]?.id];
-      return `<path class="flow-route ${statusForResult(previous)}" d="${path}" />`;
+      const isRunning = state.activeOperation === operations[index]?.id;
+      return `<path class="flow-route ${statusForResult(previous)} ${isRunning ? "running" : ""}" d="${path}" pathLength="1" />`;
     })
     .join("");
+  const pageExitResult = state.operationResults[operations.at(-1)?.id];
+  const exitRouteMarkup = hasNextPage
+    ? `<path class="flow-route exit-route ${statusForResult(pageExitResult)} ${state.activeOperation === operations.at(-1)?.id ? "running" : ""}" d="M 85 62 H 91" pathLength="1" />`
+    : "";
   const nodeMarkup = operations
     .map((operation, index) => {
       const result = state.operationResults[operation.id];
@@ -174,27 +253,50 @@ function renderFlow() {
           type="button"
           data-operation="${operation.id}"
         >
+          <span class="node-icon">${operationIcon(operation)}</span>
           <strong>${operation.name}</strong>
+          <small>${operation.human_goal || "Automation step"}</small>
         </button>
       `;
     })
     .join("");
+  const activeIndex = operations.findIndex((operation) => operation.id === state.activeOperation);
+  const activePosition = activeIndex >= 0 ? positions[activeIndex] : null;
+  const boardStyle = activePosition ? `--focus-x:${activePosition.left}%; --focus-y:${activePosition.top}%;` : "";
+  const pagerMarkup = Array.from({ length: totalPages }, (_, index) => {
+    const label = index + 1;
+    return `<button class="${index === state.flowPage ? "active" : ""}" type="button" data-flow-page="${index}" aria-label="Automation page ${label}">${label}</button>`;
+  }).join("");
 
   track.innerHTML = `
-    <div class="flow-board">
+    <div class="flow-board ${activePosition ? "has-focus" : ""}" style="${boardStyle}">
       <svg class="route-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         ${routeMarkup}
+        ${exitRouteMarkup}
       </svg>
       ${nodeMarkup}
-      <button class="arrow-node" type="button" aria-label="Next automation page"></button>
-      <div class="flow-pager" aria-hidden="true">
-        <span>1</span><span>2</span><i></i><i></i><i></i>
+      <button class="arrow-node ${hasNextPage ? "available" : ""}" type="button" aria-label="Next automation page" ${hasNextPage ? "" : "disabled"}></button>
+      <div class="flow-pager" aria-label="Automation path pages">
+        ${hasPreviousPage ? `<button type="button" data-flow-page="${state.flowPage - 1}" aria-label="Previous automation page">&lt;</button>` : ""}
+        ${pagerMarkup}
+        ${hasNextPage ? `<button type="button" data-flow-page="${state.flowPage + 1}" aria-label="Next automation page">&gt;</button>` : ""}
       </div>
     </div>
   `;
 
   track.querySelectorAll("[data-operation]").forEach((button) => {
     button.addEventListener("click", () => runOperation(project.name, button.dataset.operation));
+  });
+  track.querySelector(".arrow-node")?.addEventListener("click", () => {
+    if (!hasNextPage) return;
+    state.flowPage += 1;
+    renderFlow();
+  });
+  track.querySelectorAll("[data-flow-page]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.flowPage = Number(button.dataset.flowPage);
+      renderFlow();
+    });
   });
 }
 
@@ -215,10 +317,10 @@ function renderLog(project) {
       return `
         <article class="log-entry">
           <header>
-            <strong>${check.name}</strong>
+            <strong>${escapeHtml(check.name)}</strong>
             <span class="status-dot ${check.status}">${check.status}</span>
           </header>
-          <pre>${output}</pre>
+          <pre>${escapeHtml(output)}</pre>
         </article>
       `;
     })
@@ -264,6 +366,8 @@ async function loadProjects() {
 }
 
 async function runOperation(projectName, operationId) {
+  const operationIndex = state.selected?.operations?.findIndex((operation) => operation.id === operationId) ?? -1;
+  if (operationIndex >= 0) state.flowPage = Math.floor(operationIndex / 3);
   state.activeOperation = operationId;
   renderFlow();
   const response = await fetch(`/api/projects/${encodeURIComponent(projectName)}/operations/${encodeURIComponent(operationId)}/run`, {
@@ -305,6 +409,7 @@ document.getElementById("runSequence").addEventListener("click", runSequence);
 document.querySelectorAll("[data-view]").forEach((button) => {
   button.addEventListener("click", () => {
     state.view = button.dataset.view;
+    if (state.view !== "project-detail") state.activeOperation = null;
     render();
   });
 });
