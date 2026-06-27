@@ -27,13 +27,14 @@ button {
   font: inherit;
 }
 
-.shell {
-  width: min(1180px, calc(100vw - 64px));
-  margin: 42px auto;
+.app-shell {
+  min-height: 100vh;
   display: grid;
-  gap: 18px;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 0;
 }
 
+.sidebar,
 .projects-board,
 .summary-card,
 .context-card,
@@ -41,6 +42,50 @@ button {
 .fragile-panel {
   background: #fff;
   border: 1px solid var(--line);
+}
+
+.sidebar {
+  min-height: 100vh;
+  padding: 34px 24px;
+  border-right: 1px solid #303030;
+  background: #fff;
+}
+
+.side-nav {
+  display: grid;
+  gap: 10px;
+  margin-top: 38px;
+}
+
+.side-link {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid transparent;
+  background: #fff;
+  cursor: pointer;
+  padding: 0 12px;
+  text-align: left;
+}
+
+.side-link.active,
+.side-link:hover {
+  border-color: #d8d8d8;
+  background: #f8f8f8;
+}
+
+.view-shell {
+  min-width: 0;
+  padding: 42px;
+}
+
+.view {
+  display: none;
+  width: min(1180px, 100%);
+}
+
+.view.active {
+  display: grid;
+  gap: 18px;
 }
 
 .projects-board {
@@ -476,9 +521,18 @@ h2 {
 }
 
 @media (max-width: 900px) {
-  .shell {
-    width: min(100vw - 28px, 720px);
-    margin: 14px auto;
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    min-height: auto;
+    border-right: 0;
+    border-bottom: 1px solid #303030;
+  }
+
+  .view-shell {
+    padding: 14px;
   }
 
   .projects-board {

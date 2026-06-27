@@ -2,6 +2,7 @@ let state = {
   projects: [],
   insights: { most_failing: [] },
   selected: null,
+  view: "dashboard",
   activeOperation: null,
   operationResults: {},
 };
@@ -90,6 +91,7 @@ function renderProjectMenu() {
     `;
     button.addEventListener("click", () => {
       state.selected = project;
+      state.view = "project-detail";
       state.operationResults = {};
       state.activeOperation = null;
       render();
@@ -224,11 +226,29 @@ function renderLog(project) {
 }
 
 function render() {
+  renderViews();
   renderProjectMenu();
   renderSelectedProject();
   renderFragileList();
   renderFlow();
   renderLog(state.selected);
+}
+
+function renderViews() {
+  document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
+  document.querySelectorAll(".side-link").forEach((link) => link.classList.remove("active"));
+
+  const viewByName = {
+    dashboard: "dashboardView",
+    projects: "projectsView",
+    "project-detail": "projectDetailView",
+  };
+  const activeView = document.getElementById(viewByName[state.view] || "dashboardView");
+  activeView.classList.add("active");
+
+  const activeNav = state.view === "project-detail" ? "projects" : state.view;
+  const activeButton = document.querySelector(`[data-view="${activeNav}"]`);
+  if (activeButton) activeButton.classList.add("active");
 }
 
 async function loadProjects() {
@@ -282,4 +302,10 @@ async function runSequence() {
 }
 
 document.getElementById("runSequence").addEventListener("click", runSequence);
+document.querySelectorAll("[data-view]").forEach((button) => {
+  button.addEventListener("click", () => {
+    state.view = button.dataset.view;
+    render();
+  });
+});
 loadProjects();
