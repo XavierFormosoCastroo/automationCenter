@@ -8,53 +8,93 @@
   </head>
   <body>
     <main class="shell">
-      <aside class="sidebar" aria-label="Workspace">
+      <aside class="project-menu" aria-label="Projects">
         <div class="brand">
           <div class="brand-mark">AC</div>
           <div>
             <strong>automationCenter</strong>
-            <span>Local command dashboard</span>
+            <span>Local project control</span>
           </div>
         </div>
-        <nav class="nav">
-          <button class="nav-item active" type="button">Dashboard</button>
-          <button class="nav-item" type="button">Schedules</button>
-          <button class="nav-item" type="button">Reports</button>
-          <button class="nav-item" type="button">Settings</button>
-        </nav>
+        <div class="menu-label">Projects</div>
+        <nav id="projectMenu" class="project-menu-list"></nav>
       </aside>
 
       <section class="workspace">
-        <header class="topbar">
+        <header class="hero">
           <div>
-            <p class="eyebrow">Control panel</p>
-            <h1>Projects</h1>
+            <p class="eyebrow">Dashboard</p>
+            <h1>Local automation command center</h1>
           </div>
-          <div class="status-pill" id="globalStatus">Loading</div>
+          <div class="live-pill" id="globalStatus">Loading</div>
         </header>
 
-        <section class="metric-row" aria-label="Project metrics">
-          <div class="metric">
+        <section class="summary-grid" aria-label="Execution summary">
+          <article class="summary-card">
             <span>Projects</span>
             <strong id="projectCount">0</strong>
-          </div>
-          <div class="metric">
-            <span>Healthy</span>
-            <strong id="healthyCount">0</strong>
-          </div>
-          <div class="metric">
-            <span>Need attention</span>
-            <strong id="attentionCount">0</strong>
-          </div>
-          <div class="metric">
-            <span>Last run</span>
+          </article>
+          <article class="summary-card">
+            <span>Last execution</span>
             <strong id="lastRun">None</strong>
-          </div>
+          </article>
+          <article class="summary-card">
+            <span>Failure rate 24h</span>
+            <strong id="failureRate">0%</strong>
+          </article>
+          <article class="summary-card">
+            <span>Risk threshold</span>
+            <strong id="riskBand">Green</strong>
+          </article>
         </section>
 
-        <section class="content-grid">
-          <div class="project-list" id="projectList" aria-label="Registered projects"></div>
-          <section class="detail-panel" id="detailPanel" aria-label="Project detail"></section>
+        <section class="dashboard-grid">
+          <section class="panel project-panel" aria-label="Selected project">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Selected project</p>
+                <h2 id="selectedTitle">Project</h2>
+              </div>
+              <span class="risk-badge" id="selectedRisk">Ready</span>
+            </div>
+            <p id="selectedPath" class="path-text"></p>
+            <div class="project-facts">
+              <div>
+                <span>Last run</span>
+                <strong id="selectedLastRun">None</strong>
+              </div>
+              <div>
+                <span>24h failures</span>
+                <strong id="selectedFailures">0</strong>
+              </div>
+              <div>
+                <span>24h failure rate</span>
+                <strong id="selectedFailureRate">0%</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" aria-label="Projects with most failures">
+            <div class="panel-head compact">
+              <div>
+                <p class="eyebrow">Last 24 hours</p>
+                <h2>Most fragile projects</h2>
+              </div>
+            </div>
+            <div id="fragileList" class="fragile-list"></div>
+          </section>
+        </section>
+
+        <section class="flow-panel" aria-label="Automation flow">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Automation path</p>
+              <h2>Run operations visually</h2>
+            </div>
+            <button class="primary-action" id="runSequence" type="button">Run path</button>
+          </div>
+          <div id="flowTrack" class="flow-track"></div>
+          <div id="runLog" class="run-log"></div>
         </section>
       </section>
     </main>

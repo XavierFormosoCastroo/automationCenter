@@ -1,5 +1,6 @@
 import json
 import sys
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
@@ -29,9 +30,76 @@ def read_latest_report():
     return json.loads(reports[0].read_text(encoding="utf-8"))
 
 
+def read_reports():
+    loaded = []
+    for report_path in sorted((ROOT / "reports").glob("daily-*.json"), reverse=True):
+        try:
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            report["_file"] = report_path.name
+            loaded.append(report)
+        except json.JSONDecodeError:
+            continue
+    return loaded
+
+
+def parse_time(value):
+    if not value:
+        return None
+    normalized = value.replace("Z", "+00:00")
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def failure_level(rate):
+    if rate < 5:
+        return "good"
+    if rate < 10:
+        return "warning"
+    return "critical"
+
+
+def project_history(project_name, reports):
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(hours=24)
+    latest_run_at = None
+    total = 0
+    failed = 0
+
+    for report in reports:
+        generated_at = parse_time(report.get("generated_at"))
+        if generated_at and (latest_run_at is None or generated_at > latest_run_at):
+            if any(item.get("name") == project_name for item in report.get("projects", [])):
+                latest_run_at = generated_at
+
+        if generated_at and generated_at < since:
+            continue
+
+        for project in report.get("projects", []):
+            if project.get("name") != project_name:
+                continue
+            for check in project.get("checks", []):
+                if check.get("status") == "skipped":
+                    continue
+                total += 1
+                if check.get("status") == "failed":
+                    failed += 1
+
+    rate = round((failed / total) * 100, 1) if total else 0
+    return {
+        "latest_run_at": latest_run_at.isoformat() if latest_run_at else None,
+        "checks_24h": total,
+        "failures_24h": failed,
+        "failure_rate_24h": rate,
+        "failure_level": failure_level(rate),
+    }
+
+
 def project_payload():
     config = run_checks.load_config()
     latest = read_latest_report()
+    reports = read_reports()
     latest_by_name = {}
     if latest:
         latest_by_name = {project["name"]: project for project in latest.get("projects", [])}
@@ -40,6 +108,7 @@ def project_payload():
     for project in config["projects"]:
         path = run_checks.resolve_project_path(project)
         latest_project = latest_by_name.get(project["name"])
+        history = project_history(project["name"], reports)
         projects.append(
             {
                 "name": project["name"],
@@ -47,6 +116,7 @@ def project_payload():
                 "exists": path.exists(),
                 "summary": latest_project.get("summary") if latest_project else None,
                 "checks": latest_project.get("checks", []) if latest_project else [],
+                "history": history,
                 "operations": [
                     {
                         "id": check["id"],
@@ -58,7 +128,23 @@ def project_payload():
             }
         )
 
-    return {"projects": projects, "latest_report": latest}
+    most_failing = sorted(projects, key=lambda item: item["history"]["failure_rate_24h"], reverse=True)[:3]
+
+    return {
+        "projects": projects,
+        "latest_report": latest,
+        "insights": {
+            "most_failing": [
+                {
+                    "name": project["name"],
+                    "failure_rate_24h": project["history"]["failure_rate_24h"],
+                    "failure_level": project["history"]["failure_level"],
+                    "failures_24h": project["history"]["failures_24h"],
+                }
+                for project in most_failing
+            ]
+        },
+    }
 
 
 class AutomationHandler(BaseHTTPRequestHandler):

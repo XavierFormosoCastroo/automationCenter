@@ -1,145 +1,253 @@
 let state = {
   projects: [],
+  insights: { most_failing: [] },
   selected: null,
+  activeOperation: null,
+  operationResults: {},
 };
 
-const statusLabels = {
-  healthy: "Healthy",
-  attention: "Attention",
-  not_ready: "Not ready",
+const riskLabels = {
+  good: "Green",
+  warning: "Orange",
+  critical: "Red",
 };
-
-function statusClass(project) {
-  return project.summary?.status || "not_ready";
-}
-
-function statusText(project) {
-  return statusLabels[statusClass(project)] || "Pending";
-}
 
 function setText(id, value) {
   document.getElementById(id).textContent = value;
 }
 
-function updateMetrics(payload) {
-  const projects = payload.projects;
-  const healthy = projects.filter((project) => statusClass(project) === "healthy").length;
-  const attention = projects.filter((project) => statusClass(project) === "attention").length;
-  setText("projectCount", projects.length);
-  setText("healthyCount", healthy);
-  setText("attentionCount", attention);
-  setText("lastRun", payload.latest_report?.generated_at ? new Date(payload.latest_report.generated_at).toLocaleTimeString() : "None");
-  setText("globalStatus", attention > 0 ? "Needs attention" : "Ready");
+function history(project) {
+  return project?.history || {
+    latest_run_at: null,
+    checks_24h: 0,
+    failures_24h: 0,
+    failure_rate_24h: 0,
+    failure_level: "good",
+  };
 }
 
-function renderProjects() {
-  const list = document.getElementById("projectList");
-  list.innerHTML = "";
+function relativeTime(value) {
+  if (!value) return "No runs yet";
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+  if (diffSeconds < 60) return "just now";
+  const minutes = Math.floor(diffSeconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} d ago`;
+}
+
+function riskLevel(rate) {
+  if (rate < 5) return "good";
+  if (rate < 10) return "warning";
+  return "critical";
+}
+
+function statusForResult(result) {
+  if (!result) return "idle";
+  if (result.status === "passed") return "passed";
+  if (result.status === "failed") return "failed";
+  if (result.status === "skipped") return "skipped";
+  return "idle";
+}
+
+function updateSummary(payload) {
+  const projects = payload.projects;
+  const totalChecks = projects.reduce((sum, project) => sum + history(project).checks_24h, 0);
+  const totalFailures = projects.reduce((sum, project) => sum + history(project).failures_24h, 0);
+  const rate = totalChecks ? Math.round((totalFailures / totalChecks) * 1000) / 10 : 0;
+  const latest = projects
+    .map((project) => history(project).latest_run_at)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+
+  setText("projectCount", projects.length);
+  setText("lastRun", relativeTime(latest));
+  setText("failureRate", `${rate}%`);
+  setText("riskBand", riskLabels[riskLevel(rate)]);
+  setText("globalStatus", rate >= 10 ? "Attention" : "Ready");
+}
+
+function renderProjectMenu() {
+  const menu = document.getElementById("projectMenu");
+  menu.innerHTML = "";
 
   state.projects.forEach((project) => {
+    const data = history(project);
     const button = document.createElement("button");
-    button.className = `project-card ${state.selected?.name === project.name ? "active" : ""}`;
     button.type = "button";
+    button.className = `project-tab ${state.selected?.name === project.name ? "active" : ""}`;
     button.innerHTML = `
-      <div class="project-title">
+      <span>
         <strong>${project.name}</strong>
-        <span class="badge ${statusClass(project)}">${statusText(project)}</span>
-      </div>
-      <span class="project-path">${project.path}</span>
+        <small>${relativeTime(data.latest_run_at)}</small>
+      </span>
+      <em class="${data.failure_level}">${data.failure_rate_24h}%</em>
     `;
     button.addEventListener("click", () => {
       state.selected = project;
+      state.operationResults = {};
+      state.activeOperation = null;
       render();
     });
-    list.appendChild(button);
+    menu.appendChild(button);
   });
 }
 
-function checkOutput(check) {
-  const output = check.stdout || check.stderr || check.reason || "";
-  return output ? `<pre class="check-output">${output}</pre>` : "";
+function renderSelectedProject() {
+  const project = state.selected;
+  if (!project) return;
+  const data = history(project);
+  setText("selectedTitle", project.name);
+  setText("selectedPath", project.path);
+  setText("selectedLastRun", relativeTime(data.latest_run_at));
+  setText("selectedFailures", data.failures_24h);
+  setText("selectedFailureRate", `${data.failure_rate_24h}%`);
+
+  const badge = document.getElementById("selectedRisk");
+  badge.textContent = riskLabels[data.failure_level];
+  badge.className = `risk-badge ${data.failure_level}`;
 }
 
-function renderDetail() {
-  const panel = document.getElementById("detailPanel");
-  const project = state.selected;
-
-  if (!project) {
-    panel.innerHTML = `<div class="empty">No project selected.</div>`;
+function renderFragileList() {
+  const list = document.getElementById("fragileList");
+  const items = state.insights.most_failing || [];
+  if (!items.length) {
+    list.innerHTML = `<div class="empty">No execution data yet.</div>`;
     return;
   }
 
-  panel.innerHTML = `
-    <div class="detail-header">
-      <div>
-        <h2>${project.name}</h2>
-        <span class="project-path">${project.path}</span>
-      </div>
-      <span class="badge ${statusClass(project)}">${statusText(project)}</span>
-    </div>
-    <div class="operation-grid">
-      ${project.operations
-        .map(
-          (operation) => `
-            <button class="operation" type="button" data-operation="${operation.id}">
-              <strong>${operation.name}</strong>
-              <span class="check-goal">${operation.human_goal}</span>
-            </button>
-          `,
-        )
-        .join("")}
-    </div>
-    <div class="check-list">
-      ${(project.checks || [])
-        .map(
-          (check) => `
-            <article class="check-row">
-              <header>
-                <strong>${check.name}</strong>
-                <span class="badge ${check.status}">${check.status}</span>
-              </header>
-              <p class="check-goal">${check.human_goal || ""}</p>
-              ${checkOutput(check)}
-            </article>
-          `,
-        )
-        .join("") || `<div class="empty">No runs yet.</div>`}
-    </div>
-  `;
+  list.innerHTML = items
+    .map(
+      (item) => `
+        <article class="fragile-item">
+          <span>${item.name}</span>
+          <strong class="${item.failure_level}">${item.failure_rate_24h}%</strong>
+        </article>
+      `,
+    )
+    .join("");
+}
 
-  panel.querySelectorAll("[data-operation]").forEach((button) => {
+function renderFlow() {
+  const track = document.getElementById("flowTrack");
+  const project = state.selected;
+  if (!project) {
+    track.innerHTML = `<div class="empty">Select a project.</div>`;
+    return;
+  }
+
+  track.innerHTML = project.operations
+    .map((operation, index) => {
+      const result = state.operationResults[operation.id];
+      const status = statusForResult(result);
+      const isActive = state.activeOperation === operation.id;
+      const previous = index > 0 ? state.operationResults[project.operations[index - 1].id] : null;
+      const connectorStatus = index === 0 ? "" : statusForResult(previous);
+      return `
+        <div class="flow-step-wrap">
+          ${index === 0 ? "" : `<div class="flow-connector ${connectorStatus}"></div>`}
+          <button class="flow-step ${status} ${isActive ? "active" : ""}" type="button" data-operation="${operation.id}">
+            <span class="step-index">${index + 1}</span>
+            <strong>${operation.name}</strong>
+            <small>${operation.human_goal}</small>
+          </button>
+        </div>
+      `;
+    })
+    .join("");
+
+  track.querySelectorAll("[data-operation]").forEach((button) => {
     button.addEventListener("click", () => runOperation(project.name, button.dataset.operation));
   });
 }
 
+function renderLog(project) {
+  const log = document.getElementById("runLog");
+  const operationChecks = project?.operations
+    ? project.operations.map((operation) => state.operationResults[operation.id]).filter(Boolean)
+    : [];
+  const checks = operationChecks.length ? operationChecks : project?.checks || [];
+  if (!checks.length) {
+    log.innerHTML = `<div class="empty">Run an operation to see the latest output.</div>`;
+    return;
+  }
+
+  log.innerHTML = checks
+    .map((check) => {
+      const output = check.stdout || check.stderr || check.reason || "No output.";
+      return `
+        <article class="log-entry">
+          <header>
+            <strong>${check.name}</strong>
+            <span class="status-dot ${check.status}">${check.status}</span>
+          </header>
+          <pre>${output}</pre>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function render() {
-  renderProjects();
-  renderDetail();
+  renderProjectMenu();
+  renderSelectedProject();
+  renderFragileList();
+  renderFlow();
+  renderLog(state.selected);
 }
 
 async function loadProjects() {
   const response = await fetch("/api/projects");
   const payload = await response.json();
   state.projects = payload.projects;
+  state.insights = payload.insights || { most_failing: [] };
   state.selected = state.selected
     ? state.projects.find((project) => project.name === state.selected.name) || state.projects[0]
     : state.projects[0];
-  updateMetrics(payload);
+  updateSummary(payload);
   render();
 }
 
 async function runOperation(projectName, operationId) {
-  const panel = document.getElementById("detailPanel");
-  panel.classList.add("loading");
+  state.activeOperation = operationId;
+  renderFlow();
   const response = await fetch(`/api/projects/${encodeURIComponent(projectName)}/operations/${encodeURIComponent(operationId)}/run`, {
     method: "POST",
   });
   const payload = await response.json();
   if (!response.ok || payload.error) {
-    alert(payload.error || "Operation failed");
+    state.operationResults[operationId] = { status: "failed", stderr: payload.error || "Operation failed" };
+  } else {
+    const check = payload.project.checks[0];
+    state.operationResults[operationId] = check;
+    state.projects = state.projects.map((project) =>
+      project.name === projectName
+        ? {
+            ...project,
+            path: payload.project.path,
+            summary: payload.project.summary,
+            checks: payload.project.checks,
+          }
+        : project,
+    );
+    state.selected = state.projects.find((project) => project.name === projectName) || state.selected;
   }
+  state.activeOperation = null;
+  render();
   await loadProjects();
-  panel.classList.remove("loading");
 }
 
+async function runSequence() {
+  const project = state.selected;
+  if (!project) return;
+  state.operationResults = {};
+  for (const operation of project.operations) {
+    await runOperation(project.name, operation.id);
+  }
+}
+
+document.getElementById("runSequence").addEventListener("click", runSequence);
 loadProjects();
