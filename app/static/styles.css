@@ -6,8 +6,6 @@
   --good: #0c8f55;
   --warning: #c97811;
   --critical: #d83131;
-  --purple: #6d3df2;
-  --cyan: #13c7d4;
   --surface: #f6f7f9;
   --dot: #9ca3af;
 }
@@ -320,43 +318,61 @@ h2 {
 .flow-board {
   position: relative;
   height: 565px;
-  border: 1px solid rgba(109, 61, 242, 0.6);
-  border-left-color: rgba(19, 199, 212, 0.85);
+  border: 1px solid #d9dde5;
   border-radius: 8px;
   background:
-    radial-gradient(circle at var(--focus-x, 50%) var(--focus-y, 50%), rgba(12, 143, 85, 0.08), transparent 24%),
-    radial-gradient(circle, rgba(86, 93, 104, 0.58) 1px, transparent 1.35px) 28px 45px / 10px 10px,
+    radial-gradient(circle, rgba(107, 114, 128, 0.58) 1px, transparent 1.35px) 28px 45px / 10px 10px,
     linear-gradient(#fff, #fff);
   overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.78);
 }
 
-.flow-board::after {
-  content: "";
+.focus-dots {
   position: absolute;
-  inset: 0;
-  z-index: 0;
+  width: 1px;
+  height: 1px;
   pointer-events: none;
-  opacity: 0;
-  background: radial-gradient(circle, rgba(31, 41, 55, 0.78) 1px, transparent 1.45px) 28px 45px / 10px 10px;
-  mask-image: radial-gradient(circle at var(--focus-x, 50%) var(--focus-y, 50%), #000 0 112px, transparent 190px);
-  transition: opacity 180ms ease;
-}
-
-.flow-board.has-focus::after {
-  opacity: 1;
-}
-
-.flow-board::before {
-  content: "";
-  position: absolute;
-  top: -15px;
-  left: 23%;
-  width: 22px;
-  height: 22px;
-  border-left: 3px solid var(--purple);
-  border-bottom: 3px solid var(--purple);
-  transform: rotate(-45deg);
   z-index: 2;
+}
+
+.focus-dots i {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #111827;
+  box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.06);
+  opacity: 0.72;
+  transform: translate(var(--x), var(--y));
+  animation: dot-focus 850ms ease both;
+  animation-delay: var(--delay);
+}
+
+.focus-dots.passed i {
+  background: var(--good);
+  box-shadow: 0 0 0 4px rgba(12, 143, 85, 0.1);
+}
+
+.focus-dots.failed i {
+  background: var(--critical);
+  box-shadow: 0 0 0 4px rgba(216, 49, 49, 0.1);
+}
+
+.focus-dots.skipped i {
+  background: var(--warning);
+  box-shadow: 0 0 0 4px rgba(201, 120, 17, 0.11);
+}
+
+@keyframes dot-focus {
+  from {
+    opacity: 0;
+    transform: translate(var(--x), var(--y)) scale(0.5);
+  }
+
+  to {
+    opacity: 0.72;
+    transform: translate(var(--x), var(--y)) scale(1);
+  }
 }
 
 .route-layer {
@@ -479,7 +495,8 @@ h2 {
   stroke-linejoin: round;
 }
 
-.flow-node.active {
+.flow-node.active,
+.flow-node.focused {
   border-color: rgba(17, 24, 39, 0.24);
   box-shadow:
     0 0 0 8px rgba(17, 24, 39, 0.05),
@@ -520,31 +537,41 @@ h2 {
 
 .arrow-node {
   position: absolute;
-  top: 43%;
-  right: 45px;
-  width: 58px;
-  height: 68px;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  top: 50%;
+  right: 34px;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d9dde5;
+  border-radius: 999px;
   background: #fff;
   cursor: default;
   z-index: 3;
   opacity: 0.35;
+  transform: translateY(-50%);
+  transition: border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease, transform 180ms ease;
 }
 
-.arrow-node::before {
-  content: "";
-  position: absolute;
-  inset: 16px 19px 16px 14px;
-  border-top: 4px solid #111;
-  border-right: 4px solid #111;
-  transform: rotate(45deg);
+.arrow-node svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: #111827;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .arrow-node.available {
   cursor: pointer;
   opacity: 1;
-  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.1);
+}
+
+.arrow-node.available:hover {
+  transform: translate(2px, -50%);
+  border-color: #bfc6d1;
 }
 
 .flow-pager {

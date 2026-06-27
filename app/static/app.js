@@ -6,6 +6,7 @@ let state = {
   activeOperation: null,
   operationResults: {},
   flowPage: 0,
+  focusOperation: null,
 };
 
 const riskLabels = {
@@ -52,6 +53,25 @@ function statusForResult(result) {
   if (result.status === "failed") return "failed";
   if (result.status === "skipped") return "skipped";
   return "idle";
+}
+
+function dotFocusMarkup(position, status) {
+  if (!position) return "";
+  const offsets = [-48, -32, -16, 0, 16, 32, 48];
+  const dots = offsets
+    .flatMap((y) =>
+      offsets.map((x) => {
+        const distance = Math.sqrt(x * x + y * y);
+        if (distance < 34 || distance > 76) return "";
+        return `<i style="--x:${x}px; --y:${y}px; --delay:${Math.round(distance)}ms"></i>`;
+      }),
+    )
+    .join("");
+  return `
+    <div class="focus-dots ${status}" style="left:${position.left}%; top:${position.top}%;" aria-hidden="true">
+      ${dots}
+    </div>
+  `;
 }
 
 function escapeHtml(value = "") {
@@ -162,6 +182,7 @@ function renderProjectMenu() {
       state.operationResults = {};
       state.activeOperation = null;
       state.flowPage = 0;
+      state.focusOperation = project.operations?.[0]?.id || null;
       render();
     });
     menu.appendChild(button);
@@ -219,6 +240,9 @@ function renderFlow() {
   const operations = allOperations.slice(pageStart, pageStart + pageSize);
   const hasNextPage = state.flowPage < totalPages - 1;
   const hasPreviousPage = state.flowPage > 0;
+  if (!operations.some((operation) => operation.id === state.focusOperation)) {
+    state.focusOperation = operations[0]?.id || null;
+  }
   const positions = [
     { left: 20, top: 54 },
     { left: 50, top: 34 },
@@ -245,10 +269,11 @@ function renderFlow() {
       const result = state.operationResults[operation.id];
       const status = statusForResult(result);
       const isActive = state.activeOperation === operation.id;
+      const isFocused = state.focusOperation === operation.id;
       const position = positions[index];
       return `
         <button
-          class="flow-node ${status} ${isActive ? "active" : ""}"
+          class="flow-node ${status} ${isActive ? "active" : ""} ${isFocused ? "focused" : ""}"
           style="left:${position.left}%; top:${position.top}%"
           type="button"
           data-operation="${operation.id}"
@@ -260,22 +285,29 @@ function renderFlow() {
       `;
     })
     .join("");
-  const activeIndex = operations.findIndex((operation) => operation.id === state.activeOperation);
-  const activePosition = activeIndex >= 0 ? positions[activeIndex] : null;
-  const boardStyle = activePosition ? `--focus-x:${activePosition.left}%; --focus-y:${activePosition.top}%;` : "";
+  const focusOperationId = state.activeOperation || state.focusOperation || operations[0]?.id;
+  const focusIndex = operations.findIndex((operation) => operation.id === focusOperationId);
+  const focusPosition = focusIndex >= 0 ? positions[focusIndex] : null;
+  const focusStatus = focusIndex >= 0 ? statusForResult(state.operationResults[operations[focusIndex].id]) : "idle";
+  const focusDots = dotFocusMarkup(focusPosition, focusStatus);
   const pagerMarkup = Array.from({ length: totalPages }, (_, index) => {
     const label = index + 1;
     return `<button class="${index === state.flowPage ? "active" : ""}" type="button" data-flow-page="${index}" aria-label="Automation page ${label}">${label}</button>`;
   }).join("");
 
   track.innerHTML = `
-    <div class="flow-board ${activePosition ? "has-focus" : ""}" style="${boardStyle}">
+    <div class="flow-board">
       <svg class="route-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         ${routeMarkup}
         ${exitRouteMarkup}
       </svg>
+      ${focusDots}
       ${nodeMarkup}
-      <button class="arrow-node ${hasNextPage ? "available" : ""}" type="button" aria-label="Next automation page" ${hasNextPage ? "" : "disabled"}></button>
+      <button class="arrow-node ${hasNextPage ? "available" : ""}" type="button" aria-label="Next automation page" ${hasNextPage ? "" : "disabled"}>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m9 5 7 7-7 7" />
+        </svg>
+      </button>
       <div class="flow-pager" aria-label="Automation path pages">
         ${hasPreviousPage ? `<button type="button" data-flow-page="${state.flowPage - 1}" aria-label="Previous automation page">&lt;</button>` : ""}
         ${pagerMarkup}
@@ -285,16 +317,29 @@ function renderFlow() {
   `;
 
   track.querySelectorAll("[data-operation]").forEach((button) => {
-    button.addEventListener("click", () => runOperation(project.name, button.dataset.operation));
+    button.addEventListener("mouseenter", () => {
+      state.focusOperation = button.dataset.operation;
+      renderFlow();
+    });
+    button.addEventListener("focus", () => {
+      state.focusOperation = button.dataset.operation;
+      renderFlow();
+    });
+    button.addEventListener("click", () => {
+      state.focusOperation = button.dataset.operation;
+      runOperation(project.name, button.dataset.operation);
+    });
   });
   track.querySelector(".arrow-node")?.addEventListener("click", () => {
     if (!hasNextPage) return;
     state.flowPage += 1;
+    state.focusOperation = allOperations[state.flowPage * pageSize]?.id || null;
     renderFlow();
   });
   track.querySelectorAll("[data-flow-page]").forEach((button) => {
     button.addEventListener("click", () => {
       state.flowPage = Number(button.dataset.flowPage);
+      state.focusOperation = allOperations[state.flowPage * pageSize]?.id || null;
       renderFlow();
     });
   });
@@ -369,6 +414,7 @@ async function runOperation(projectName, operationId) {
   const operationIndex = state.selected?.operations?.findIndex((operation) => operation.id === operationId) ?? -1;
   if (operationIndex >= 0) state.flowPage = Math.floor(operationIndex / 3);
   state.activeOperation = operationId;
+  state.focusOperation = operationId;
   renderFlow();
   const response = await fetch(`/api/projects/${encodeURIComponent(projectName)}/operations/${encodeURIComponent(operationId)}/run`, {
     method: "POST",
@@ -392,6 +438,7 @@ async function runOperation(projectName, operationId) {
     state.selected = state.projects.find((project) => project.name === projectName) || state.selected;
   }
   state.activeOperation = null;
+  state.focusOperation = operationId;
   render();
   await loadProjects();
 }
