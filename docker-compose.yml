@@ -1,10 +1,26 @@
 services:
-  automation-center:
+  backend:
     build: .
+    depends_on:
+      - database
+    environment:
+      AUTOMATION_IN_DOCKER: "1"
+      DATABASE_URL: postgresql://automation:automation@database:5432/automation_center
     ports:
       - "8000:8000"
     volumes:
       - ./config:/app/config
-      - ./data:/app/data
       - ./reports:/app/reports
       - ../myGoogleDrive:/projects/myGoogleDrive
+
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: automation_center
+      POSTGRES_USER: automation
+      POSTGRES_PASSWORD: automation
+    volumes:
+      - automation-db:/var/lib/postgresql/data
+
+volumes:
+  automation-db:

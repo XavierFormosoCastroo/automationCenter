@@ -33,7 +33,16 @@ Los informes se generan en `reports/`.
 
 ## Datos persistentes
 
-La app guarda el historico operativo en SQLite:
+En Docker, la app guarda el historico operativo en un contenedor PostgreSQL separado:
+
+```text
+backend   -> UI/API
+database  -> PostgreSQL
+```
+
+El volumen persistente se llama `automation-db`.
+
+Si arrancas la app fuera de Docker y no defines `DATABASE_URL`, se usa SQLite como fallback:
 
 ```text
 data/automation.db
