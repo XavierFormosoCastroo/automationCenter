@@ -107,6 +107,30 @@
             <div id="runLog" class="run-log"></div>
           </section>
         </section>
+
+        <section class="view" id="operationDetailView" aria-label="Operation detail">
+          <section class="operation-page">
+            <header class="operation-head">
+              <button class="ghost-action" id="backToPath" type="button">Back to path</button>
+              <div>
+                <span id="operationProject">Project</span>
+                <h1 id="operationTitle">Operation</h1>
+                <p id="operationDescription"></p>
+              </div>
+            </header>
+
+            <section class="operation-detail-grid">
+              <article class="operation-info">
+                <span>Phase script</span>
+                <pre id="operationScript"></pre>
+              </article>
+              <article class="operation-info">
+                <span>Execution conditions</span>
+                <p id="operationConditions"></p>
+              </article>
+            </section>
+          </section>
+        </section>
       </section>
     </main>
 

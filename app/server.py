@@ -122,6 +122,10 @@ def project_payload():
                         "id": check["id"],
                         "name": check["name"],
                         "human_goal": check.get("human_goal", ""),
+                        "command": check.get("command", []),
+                        "script": " ".join(str(part) for part in check.get("command", [])),
+                        "only_if_exists": check.get("only_if_exists"),
+                        "only_if_exists_any": check.get("only_if_exists_any"),
                     }
                     for check in project["checks"]
                 ],

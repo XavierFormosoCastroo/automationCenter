@@ -7,6 +7,7 @@ let state = {
   operationResults: {},
   flowPage: 0,
   focusOperation: null,
+  selectedOperation: null,
 };
 
 const riskLabels = {
@@ -140,6 +141,20 @@ function operationIcon(operation) {
   `;
 }
 
+function selectedOperation() {
+  if (!state.selected) return null;
+  return state.selected.operations?.find((operation) => operation.id === state.selectedOperation) || null;
+}
+
+function operationConditions(operation) {
+  if (!operation) return "No conditions configured.";
+  if (operation.only_if_exists) return `Only runs if ${operation.only_if_exists} exists.`;
+  if (operation.only_if_exists_any?.length) {
+    return `Only runs if any of these files exists: ${operation.only_if_exists_any.join(", ")}.`;
+  }
+  return "Always available for this project.";
+}
+
 function updateSummary(payload) {
   const projects = payload.projects;
   const totalChecks = projects.reduce((sum, project) => sum + history(project).checks_24h, 0);
@@ -183,6 +198,7 @@ function renderProjectMenu() {
       state.activeOperation = null;
       state.flowPage = 0;
       state.focusOperation = project.operations?.[0]?.id || null;
+      state.selectedOperation = null;
       render();
     });
     menu.appendChild(button);
@@ -292,7 +308,7 @@ function renderFlow() {
   const focusDots = dotFocusMarkup(focusPosition, focusStatus);
   const pagerMarkup = Array.from({ length: totalPages }, (_, index) => {
     const label = index + 1;
-    return `<button class="${index === state.flowPage ? "active" : ""}" type="button" data-flow-page="${index}" aria-label="Automation page ${label}">${label}</button>`;
+    return `<button class="${index === state.flowPage ? "active" : ""}" type="button" data-flow-page="${index}" aria-label="Go to automation page ${label}">${label}</button>`;
   }).join("");
 
   track.innerHTML = `
@@ -303,15 +319,20 @@ function renderFlow() {
       </svg>
       ${focusDots}
       ${nodeMarkup}
-      <button class="arrow-node ${hasNextPage ? "available" : ""}" type="button" aria-label="Next automation page" ${hasNextPage ? "" : "disabled"}>
+      <button class="arrow-node arrow-node-left ${hasPreviousPage ? "available" : ""}" type="button" aria-label="Previous automation section" ${hasPreviousPage ? "" : "disabled"}>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m15 5-7 7 7 7" />
+        </svg>
+      </button>
+      <button class="arrow-node arrow-node-right ${hasNextPage ? "available" : ""}" type="button" aria-label="Next automation section" ${hasNextPage ? "" : "disabled"}>
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="m9 5 7 7-7 7" />
         </svg>
       </button>
       <div class="flow-pager" aria-label="Automation path pages">
-        ${hasPreviousPage ? `<button type="button" data-flow-page="${state.flowPage - 1}" aria-label="Previous automation page">&lt;</button>` : ""}
+        ${hasPreviousPage ? `<button type="button" data-flow-page="${state.flowPage - 1}" aria-label="Go to previous automation page">&lt;</button>` : ""}
         ${pagerMarkup}
-        ${hasNextPage ? `<button type="button" data-flow-page="${state.flowPage + 1}" aria-label="Next automation page">&gt;</button>` : ""}
+        ${hasNextPage ? `<button type="button" data-flow-page="${state.flowPage + 1}" aria-label="Go to next automation page">&gt;</button>` : ""}
       </div>
     </div>
   `;
@@ -327,12 +348,20 @@ function renderFlow() {
     });
     button.addEventListener("click", () => {
       state.focusOperation = button.dataset.operation;
-      runOperation(project.name, button.dataset.operation);
+      state.selectedOperation = button.dataset.operation;
+      state.view = "operation-detail";
+      render();
     });
   });
-  track.querySelector(".arrow-node")?.addEventListener("click", () => {
+  track.querySelector(".arrow-node-right")?.addEventListener("click", () => {
     if (!hasNextPage) return;
     state.flowPage += 1;
+    state.focusOperation = allOperations[state.flowPage * pageSize]?.id || null;
+    renderFlow();
+  });
+  track.querySelector(".arrow-node-left")?.addEventListener("click", () => {
+    if (!hasPreviousPage) return;
+    state.flowPage -= 1;
     state.focusOperation = allOperations[state.flowPage * pageSize]?.id || null;
     renderFlow();
   });
@@ -343,6 +372,16 @@ function renderFlow() {
       renderFlow();
     });
   });
+}
+
+function renderOperationDetail() {
+  const operation = selectedOperation();
+  if (!operation || !state.selected) return;
+  setText("operationProject", state.selected.name);
+  setText("operationTitle", operation.name);
+  setText("operationDescription", operation.human_goal || "No description configured.");
+  setText("operationScript", operation.script || "No script configured.");
+  setText("operationConditions", operationConditions(operation));
 }
 
 function renderLog(project) {
@@ -378,6 +417,7 @@ function render() {
   renderSelectedProject();
   renderFragileList();
   renderFlow();
+  renderOperationDetail();
   renderLog(state.selected);
 }
 
@@ -389,11 +429,12 @@ function renderViews() {
     dashboard: "dashboardView",
     projects: "projectsView",
     "project-detail": "projectDetailView",
+    "operation-detail": "operationDetailView",
   };
   const activeView = document.getElementById(viewByName[state.view] || "dashboardView");
   activeView.classList.add("active");
 
-  const activeNav = state.view === "project-detail" ? "projects" : state.view;
+  const activeNav = state.view === "project-detail" || state.view === "operation-detail" ? "projects" : state.view;
   const activeButton = document.querySelector(`[data-view="${activeNav}"]`);
   if (activeButton) activeButton.classList.add("active");
 }
@@ -453,10 +494,15 @@ async function runSequence() {
 }
 
 document.getElementById("runSequence").addEventListener("click", runSequence);
+document.getElementById("backToPath").addEventListener("click", () => {
+  state.view = "project-detail";
+  render();
+});
 document.querySelectorAll("[data-view]").forEach((button) => {
   button.addEventListener("click", () => {
     state.view = button.dataset.view;
     if (state.view !== "project-detail") state.activeOperation = null;
+    if (state.view !== "operation-detail") state.selectedOperation = null;
     render();
   });
 });
