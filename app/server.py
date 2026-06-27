@@ -12,6 +12,7 @@ RUNNER_DIR = ROOT / "runner"
 sys.path.insert(0, str(RUNNER_DIR))
 
 import run_checks  # noqa: E402
+import storage  # noqa: E402
 
 
 def json_response(handler, payload, status=200):
@@ -99,7 +100,6 @@ def project_history(project_name, reports):
 def project_payload():
     config = run_checks.load_config()
     latest = read_latest_report()
-    reports = read_reports()
     latest_by_name = {}
     if latest:
         latest_by_name = {project["name"]: project for project in latest.get("projects", [])}
@@ -107,8 +107,8 @@ def project_payload():
     projects = []
     for project in config["projects"]:
         path = run_checks.resolve_project_path(project)
-        latest_project = latest_by_name.get(project["name"])
-        history = project_history(project["name"], reports)
+        latest_project = storage.latest_project_run(project["name"]) or latest_by_name.get(project["name"])
+        history = storage.project_history(project["name"])
         projects.append(
             {
                 "name": project["name"],
@@ -128,21 +128,13 @@ def project_payload():
             }
         )
 
-    most_failing = sorted(projects, key=lambda item: item["history"]["failure_rate_24h"], reverse=True)[:3]
+    most_failing = storage.most_failing()
 
     return {
         "projects": projects,
         "latest_report": latest,
         "insights": {
-            "most_failing": [
-                {
-                    "name": project["name"],
-                    "failure_rate_24h": project["history"]["failure_rate_24h"],
-                    "failure_level": project["history"]["failure_level"],
-                    "failures_24h": project["history"]["failures_24h"],
-                }
-                for project in most_failing
-            ]
+            "most_failing": most_failing
         },
     }
 
@@ -155,6 +147,10 @@ class AutomationHandler(BaseHTTPRequestHandler):
 
         if self.path == "/api/reports/latest":
             json_response(self, read_latest_report() or {"projects": []})
+            return
+
+        if self.path == "/api/runs":
+            json_response(self, {"runs": storage.recent_runs()})
             return
 
         path = "index.html" if self.path == "/" else unquote(self.path.lstrip("/"))
@@ -191,6 +187,7 @@ class AutomationHandler(BaseHTTPRequestHandler):
             try:
                 result = run_checks.run_project(project, operation_id=operation_id)
                 report = run_checks.write_report([result])
+                storage.save_report(report)
                 json_response(self, {"project": result, "report": report})
             except Exception as exc:
                 json_response(self, {"error": str(exc)}, status=500)
@@ -203,6 +200,7 @@ class AutomationHandler(BaseHTTPRequestHandler):
 
 
 def main():
+    storage.init_db()
     server = ThreadingHTTPServer(("0.0.0.0", 8000), AutomationHandler)
     print("automationCenter running on http://localhost:8000")
     server.serve_forever()

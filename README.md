@@ -31,6 +31,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_daily.ps1
 
 Los informes se generan en `reports/`.
 
+## Datos persistentes
+
+La app guarda el historico operativo en SQLite:
+
+```text
+data/automation.db
+```
+
+La API principal para consultar ejecuciones recientes es:
+
+```text
+GET /api/runs
+```
+
+Los informes de `reports/` siguen existiendo como exportables legibles, pero el dashboard puede calcular metricas desde la base de datos.
+
 ## Panel web local
 
 Arrancar sin Docker:
