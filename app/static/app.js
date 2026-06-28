@@ -306,9 +306,13 @@ function renderFlow() {
           type="button"
           data-operation="${operation.id}"
         >
+          <span class="node-step">${pageStart + index + 1}</span>
           <span class="node-icon">${operationIcon(operation)}</span>
-          <strong>${operation.name}</strong>
-          <small>${operation.human_goal || "Automation step"}</small>
+          <span class="node-copy">
+            <strong>${operation.name}</strong>
+            <small>${operation.human_goal || "Automation step"}</small>
+          </span>
+          <span class="node-state">${status}</span>
           <span class="flow-tooltip" role="tooltip">
             <b>${escapeHtml(operation.name)}</b>
             <span>${escapeHtml(operation.human_goal || "No description configured.")}</span>
@@ -330,11 +334,17 @@ function renderFlow() {
 
   track.innerHTML = `
     <div class="flow-board">
+      <div class="flow-board-head">
+        <span>Section ${state.flowPage + 1} of ${totalPages}</span>
+        <strong>${operations[0]?.name || "Automation"}${operations.length > 1 ? ` to ${operations.at(-1).name}` : ""}</strong>
+      </div>
       <svg class="route-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         ${entryRouteMarkup}
         ${routeMarkup}
         ${exitRouteMarkup}
       </svg>
+      ${hasPreviousPage ? `<span class="flow-edge-label edge-label-left">From previous</span>` : ""}
+      ${hasNextPage ? `<span class="flow-edge-label edge-label-right">Continues</span>` : ""}
       ${focusDots}
       ${nodeMarkup}
       <button class="arrow-node arrow-node-left ${hasPreviousPage ? "available" : ""}" type="button" aria-label="Previous automation section" ${hasPreviousPage ? "" : "disabled"}>

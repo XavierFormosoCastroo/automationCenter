@@ -323,10 +323,56 @@ h2 {
   border: 1px solid #d9dde5;
   border-radius: 8px;
   background:
-    radial-gradient(circle, rgba(107, 114, 128, 0.58) 1px, transparent 1.35px) 28px 45px / 10px 10px,
+    linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(255, 255, 255, 0.88)),
+    radial-gradient(circle, rgba(107, 114, 128, 0.46) 1px, transparent 1.35px) 28px 45px / 10px 10px,
     linear-gradient(#fff, #fff);
   overflow: hidden;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.78);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.78),
+    0 18px 50px rgba(15, 23, 42, 0.05);
+}
+
+.flow-board::before {
+  content: "";
+  position: absolute;
+  inset: 76px 72px 88px;
+  border: 1px solid rgba(217, 221, 229, 0.72);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.46);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.flow-board-head {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  z-index: 4;
+}
+
+.flow-board-head span {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d9dde5;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 0 12px;
+}
+
+.flow-board-head strong {
+  overflow: hidden;
+  color: #111827;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .focus-dots {
@@ -391,7 +437,7 @@ h2 {
   stroke: #1b1b1b;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 0.72;
+  stroke-width: 0.9;
   transition: stroke 240ms ease, filter 240ms ease, stroke-dashoffset 240ms ease;
 }
 
@@ -478,20 +524,21 @@ h2 {
 
 .flow-node {
   position: absolute;
-  width: 132px;
-  height: 118px;
+  width: 190px;
+  height: 92px;
   transform: translate(-50%, -50%);
   display: grid;
-  grid-template-rows: 34px auto 1fr;
-  place-items: center;
-  gap: 5px;
-  border: 1px solid rgba(17, 24, 39, 0.08);
+  grid-template-columns: 28px 38px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 8px 10px;
+  border: 1px solid rgba(17, 24, 39, 0.1);
   border-radius: 8px;
   background: #fff;
   cursor: pointer;
-  padding: 14px 12px 12px;
-  text-align: center;
-  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+  padding: 12px;
+  text-align: left;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.1);
   z-index: 3;
   transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
@@ -525,9 +572,23 @@ h2 {
   -webkit-line-clamp: 2;
 }
 
+.node-step {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  align-self: start;
+  border: 1px solid #d9dde5;
+  border-radius: 999px;
+  background: #fff;
+  color: #111827;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .node-icon {
-  width: 32px;
-  height: 32px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   color: #111827;
@@ -544,6 +605,28 @@ h2 {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.node-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.node-state {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #f9fafb;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 8px;
+  text-transform: uppercase;
 }
 
 .flow-tooltip {
@@ -608,6 +691,12 @@ h2 {
   border-color: rgba(12, 143, 85, 0.55);
 }
 
+.flow-node.passed .node-state {
+  border-color: rgba(12, 143, 85, 0.2);
+  background: rgba(12, 143, 85, 0.07);
+  color: var(--good);
+}
+
 .flow-node.passed .node-icon {
   color: var(--good);
   border-color: rgba(12, 143, 85, 0.24);
@@ -618,6 +707,12 @@ h2 {
   border-color: rgba(216, 49, 49, 0.6);
 }
 
+.flow-node.failed .node-state {
+  border-color: rgba(216, 49, 49, 0.22);
+  background: rgba(216, 49, 49, 0.07);
+  color: var(--critical);
+}
+
 .flow-node.failed .node-icon {
   color: var(--critical);
   border-color: rgba(216, 49, 49, 0.24);
@@ -626,6 +721,12 @@ h2 {
 
 .flow-node.skipped {
   border-color: rgba(201, 120, 17, 0.6);
+}
+
+.flow-node.skipped .node-state {
+  border-color: rgba(201, 120, 17, 0.24);
+  background: rgba(201, 120, 17, 0.08);
+  color: var(--warning);
 }
 
 .flow-node.skipped .node-icon {
@@ -691,7 +792,7 @@ h2 {
 .flow-pager {
   position: absolute;
   left: 50%;
-  bottom: 48px;
+  bottom: 28px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -710,6 +811,31 @@ h2 {
   color: #111;
   cursor: pointer;
   font-size: 12px;
+}
+
+.flow-edge-label {
+  position: absolute;
+  z-index: 3;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d9dde5;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 10px;
+}
+
+.edge-label-left {
+  left: 24px;
+  top: 53%;
+}
+
+.edge-label-right {
+  right: 24px;
+  top: 61%;
 }
 
 .flow-pager button.active {
