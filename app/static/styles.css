@@ -395,11 +395,31 @@ h2 {
   transition: stroke 240ms ease, filter 240ms ease, stroke-dashoffset 240ms ease;
 }
 
+.bridge-route {
+  stroke: #6b7280;
+  stroke-dasharray: 0.08 0.04;
+}
+
+.route-port {
+  fill: #fff;
+  stroke: #6b7280;
+  stroke-width: 0.35;
+}
+
 .flow-route.passed {
   stroke: var(--good);
   filter: drop-shadow(0 0 2px rgba(12, 143, 85, 0.8));
   stroke-dasharray: 1;
   animation: route-progress 700ms ease-out both;
+}
+
+.bridge-route.passed {
+  stroke-dasharray: 0.16 0.05;
+}
+
+.route-port.passed {
+  fill: var(--good);
+  stroke: #fff;
 }
 
 .flow-route.failed {
@@ -409,11 +429,29 @@ h2 {
   animation: route-progress 700ms ease-out both;
 }
 
+.bridge-route.failed {
+  stroke-dasharray: 0.16 0.05;
+}
+
+.route-port.failed {
+  fill: var(--critical);
+  stroke: #fff;
+}
+
 .flow-route.skipped {
   stroke: var(--warning);
   filter: drop-shadow(0 0 2px rgba(201, 120, 17, 0.7));
   stroke-dasharray: 1;
   animation: route-progress 700ms ease-out both;
+}
+
+.bridge-route.skipped {
+  stroke-dasharray: 0.16 0.05;
+}
+
+.route-port.skipped {
+  fill: var(--warning);
+  stroke: #fff;
 }
 
 .flow-route.running {
@@ -462,6 +500,13 @@ h2 {
   border-color: rgba(17, 24, 39, 0.22);
 }
 
+.flow-node:hover .flow-tooltip,
+.flow-node:focus-visible .flow-tooltip {
+  opacity: 1;
+  transform: translate(-50%, calc(-100% - 14px));
+  visibility: visible;
+}
+
 .flow-node strong {
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -499,6 +544,54 @@ h2 {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.flow-tooltip {
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  width: 240px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid #d9dde5;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
+  color: #111827;
+  opacity: 0;
+  padding: 12px;
+  pointer-events: none;
+  text-align: left;
+  transform: translate(-50%, calc(-100% - 8px));
+  transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+  visibility: hidden;
+  z-index: 8;
+}
+
+.flow-tooltip b,
+.flow-tooltip span,
+.flow-tooltip code {
+  display: block;
+}
+
+.flow-tooltip b {
+  font-size: 12px;
+}
+
+.flow-tooltip span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.flow-tooltip code {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #f7f7f7;
+  font-size: 11px;
+  padding: 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .flow-node.active,

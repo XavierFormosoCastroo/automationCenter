@@ -273,12 +273,18 @@ function renderFlow() {
       if (!operations[index + 1]) return "";
       const previous = state.operationResults[operations[index]?.id];
       const isRunning = state.activeOperation === operations[index]?.id;
-      return `<path class="flow-route ${statusForResult(previous)} ${isRunning ? "running" : ""}" d="${path}" pathLength="1" />`;
+      return `<path class="flow-route internal-route ${statusForResult(previous)} ${isRunning ? "running" : ""}" d="${path}" pathLength="1" />`;
     })
     .join("");
+  const pageEntryResult = pageStart > 0 ? state.operationResults[allOperations[pageStart - 1]?.id] : null;
+  const entryRouteMarkup = hasPreviousPage
+    ? `<path class="flow-route bridge-route entry-route ${statusForResult(pageEntryResult)}" d="M 7 54 H 13" pathLength="1" />
+       <circle class="route-port entry-port ${statusForResult(pageEntryResult)}" cx="7" cy="54" r="1.2" />`
+    : "";
   const pageExitResult = state.operationResults[operations.at(-1)?.id];
   const exitRouteMarkup = hasNextPage
-    ? `<path class="flow-route exit-route ${statusForResult(pageExitResult)} ${state.activeOperation === operations.at(-1)?.id ? "running" : ""}" d="M 85 62 H 91" pathLength="1" />`
+    ? `<path class="flow-route bridge-route exit-route ${statusForResult(pageExitResult)} ${state.activeOperation === operations.at(-1)?.id ? "running" : ""}" d="M 85 62 H 93" pathLength="1" />
+       <circle class="route-port exit-port ${statusForResult(pageExitResult)}" cx="93" cy="62" r="1.2" />`
     : "";
   const nodeMarkup = operations
     .map((operation, index) => {
@@ -297,6 +303,11 @@ function renderFlow() {
           <span class="node-icon">${operationIcon(operation)}</span>
           <strong>${operation.name}</strong>
           <small>${operation.human_goal || "Automation step"}</small>
+          <span class="flow-tooltip" role="tooltip">
+            <b>${escapeHtml(operation.name)}</b>
+            <span>${escapeHtml(operation.human_goal || "No description configured.")}</span>
+            <code>${escapeHtml(operation.script || "No script configured.")}</code>
+          </span>
         </button>
       `;
     })
@@ -314,6 +325,7 @@ function renderFlow() {
   track.innerHTML = `
     <div class="flow-board">
       <svg class="route-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        ${entryRouteMarkup}
         ${routeMarkup}
         ${exitRouteMarkup}
       </svg>
@@ -338,14 +350,6 @@ function renderFlow() {
   `;
 
   track.querySelectorAll("[data-operation]").forEach((button) => {
-    button.addEventListener("mouseenter", () => {
-      state.focusOperation = button.dataset.operation;
-      renderFlow();
-    });
-    button.addEventListener("focus", () => {
-      state.focusOperation = button.dataset.operation;
-      renderFlow();
-    });
     button.addEventListener("click", () => {
       state.focusOperation = button.dataset.operation;
       state.selectedOperation = button.dataset.operation;
