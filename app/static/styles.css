@@ -799,7 +799,8 @@ h2 {
 }
 
 .operation-head span,
-.operation-info span {
+.operation-info span,
+.operation-info label {
   color: var(--muted);
   font-size: 12px;
 }
@@ -840,19 +841,46 @@ h2 {
   padding: 18px;
 }
 
-.operation-info pre {
+.operation-info textarea {
+  width: 100%;
   min-height: 120px;
   margin: 12px 0 0;
-  overflow: auto;
+  resize: vertical;
   border: 1px solid var(--line);
   background: #f7f7f7;
+  color: var(--ink);
+  font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   padding: 14px;
-  white-space: pre-wrap;
+}
+
+.operation-info textarea:focus {
+  outline: 2px solid rgba(17, 24, 39, 0.12);
+  outline-offset: 2px;
 }
 
 .operation-info p {
   margin-top: 12px;
   color: #3f3f46;
+}
+
+.operation-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+#operationSaveStatus {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#operationSaveStatus.good {
+  color: var(--good);
+}
+
+#operationSaveStatus.critical {
+  color: var(--critical);
 }
 
 @media (max-width: 900px) {

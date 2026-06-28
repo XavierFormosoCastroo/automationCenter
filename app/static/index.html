@@ -121,8 +121,12 @@
 
             <section class="operation-detail-grid">
               <article class="operation-info">
-                <span>Phase script</span>
-                <pre id="operationScript"></pre>
+                <label for="operationScript">Phase script</label>
+                <textarea id="operationScript" rows="5" spellcheck="false"></textarea>
+                <footer class="operation-editor-actions">
+                  <button class="primary-action" id="saveOperationCommand" type="button">Save command</button>
+                  <span id="operationSaveStatus"></span>
+                </footer>
               </article>
               <article class="operation-info">
                 <span>Execution conditions</span>

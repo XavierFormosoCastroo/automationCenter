@@ -1,4 +1,5 @@
 import json
+import shlex
 import sys
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -9,6 +10,7 @@ from urllib.parse import unquote
 ROOT = Path(__file__).resolve().parents[1]
 STATIC_DIR = ROOT / "app" / "static"
 RUNNER_DIR = ROOT / "runner"
+CONFIG_PATH = ROOT / "config" / "projects.json"
 sys.path.insert(0, str(RUNNER_DIR))
 
 import run_checks  # noqa: E402
@@ -22,6 +24,46 @@ def json_response(handler, payload, status=200):
     handler.send_header("Content-Length", str(len(body)))
     handler.end_headers()
     handler.wfile.write(body)
+
+
+def read_json_body(handler):
+    length = int(handler.headers.get("Content-Length", "0"))
+    if length <= 0:
+        return {}
+    return json.loads(handler.rfile.read(length).decode("utf-8"))
+
+
+def save_config(config):
+    CONFIG_PATH.write_text(
+        json.dumps(config, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def parse_command(payload):
+    if isinstance(payload.get("command"), list):
+        command = [str(part).strip() for part in payload["command"] if str(part).strip()]
+    else:
+        script = str(payload.get("script", "")).strip()
+        command = shlex.split(script)
+    if not command:
+        raise ValueError("El comando no puede estar vacío.")
+    return command
+
+
+def update_operation_command(project_name, operation_id, payload):
+    config = run_checks.load_config()
+    project = next((item for item in config["projects"] if item["name"] == project_name), None)
+    if not project:
+        return None, "Proyecto no encontrado."
+
+    operation = next((item for item in project.get("checks", []) if item.get("id") == operation_id), None)
+    if not operation:
+        return None, "Fase no encontrada."
+
+    operation["command"] = parse_command(payload)
+    save_config(config)
+    return operation, None
 
 
 def read_latest_report():
@@ -179,6 +221,21 @@ class AutomationHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parts = self.path.strip("/").split("/")
+        if len(parts) == 6 and parts[:2] == ["api", "projects"] and parts[3] == "operations" and parts[5] == "command":
+            project_name = unquote(parts[2])
+            operation_id = unquote(parts[4])
+            try:
+                operation, error = update_operation_command(project_name, operation_id, read_json_body(self))
+                if error:
+                    json_response(self, {"error": error}, status=404)
+                    return
+                json_response(self, {"operation": operation, "payload": project_payload()})
+            except ValueError as exc:
+                json_response(self, {"error": str(exc)}, status=400)
+            except Exception as exc:
+                json_response(self, {"error": str(exc)}, status=500)
+            return
+
         if len(parts) == 6 and parts[:2] == ["api", "projects"] and parts[3] == "operations" and parts[5] == "run":
             project_name = unquote(parts[2])
             operation_id = unquote(parts[4])

@@ -155,6 +155,12 @@ function operationConditions(operation) {
   return "Always available for this project.";
 }
 
+function setSaveStatus(message, level = "") {
+  const status = document.getElementById("operationSaveStatus");
+  status.textContent = message;
+  status.className = level;
+}
+
 function updateSummary(payload) {
   const projects = payload.projects;
   const totalChecks = projects.reduce((sum, project) => sum + history(project).checks_24h, 0);
@@ -384,8 +390,9 @@ function renderOperationDetail() {
   setText("operationProject", state.selected.name);
   setText("operationTitle", operation.name);
   setText("operationDescription", operation.human_goal || "No description configured.");
-  setText("operationScript", operation.script || "No script configured.");
+  document.getElementById("operationScript").value = operation.script || "";
   setText("operationConditions", operationConditions(operation));
+  setSaveStatus("");
 }
 
 function renderLog(project) {
@@ -497,7 +504,36 @@ async function runSequence() {
   }
 }
 
+async function saveOperationCommand() {
+  const operation = selectedOperation();
+  const project = state.selected;
+  if (!operation || !project) return;
+
+  const script = document.getElementById("operationScript").value.trim();
+  setSaveStatus("Saving...");
+  const response = await fetch(
+    `/api/projects/${encodeURIComponent(project.name)}/operations/${encodeURIComponent(operation.id)}/command`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ script }),
+    },
+  );
+  const result = await response.json();
+  if (!response.ok || result.error) {
+    setSaveStatus(result.error || "Could not save command.", "critical");
+    return;
+  }
+
+  state.projects = result.payload.projects;
+  state.selected = state.projects.find((item) => item.name === project.name) || state.selected;
+  state.selectedOperation = operation.id;
+  renderOperationDetail();
+  setSaveStatus("Saved", "good");
+}
+
 document.getElementById("runSequence").addEventListener("click", runSequence);
+document.getElementById("saveOperationCommand").addEventListener("click", saveOperationCommand);
 document.getElementById("backToPath").addEventListener("click", () => {
   state.view = "project-detail";
   render();
